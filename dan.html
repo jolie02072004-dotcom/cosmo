@@ -1,0 +1,1049 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSMO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cosmo-blue: #69C9FF;
+            --cosmo-mint: #8EF0D2;
+            --cosmo-purple: #A7B8FF;
+            --cosmo-bg: #E6F7FF;
+        }
+        body {
+            font-family: 'Outfit', 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #eef2ff 100%);
+            min-height: 100vh;
+            color: #334155;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px -5px rgba(105, 201, 255, 0.15);
+        }
+        .perspective { perspective: 1000px; }
+        
+        .flip-card-inner {
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .flipped { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .flip-card-back { transform: rotateY(180deg); }
+        
+        .cosmo-gradient-text {
+            background: linear-gradient(135deg, #3b82f6, #06b6d4, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .cosmo-btn-gradient {
+            background: linear-gradient(135deg, #69C9FF, #8EF0D2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(105, 201, 255, 0.35);
+        }
+        .cosmo-btn-gradient:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+        
+        .mosco-float {
+            animation: float 3.5s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(1.5deg); }
+        }
+
+        /* NotebookLM Smooth Slide Transitions */
+        .card-container-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+        .slide-next-enter {
+            animation: slideNextEnter 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        .slide-prev-enter {
+            animation: slidePrevEnter 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes slideNextEnter {
+            from {
+                opacity: 0.3;
+                transform: translateX(40px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        @keyframes slidePrevEnter {
+            from {
+                opacity: 0.3;
+                transform: translateX(-40px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const VOCAB_DATA = [
+            // Unit 1
+            { word: "Belong to", type: "v", ipa: "/bɪˈlɒŋ tu/", mean: "Thuộc về", unit: 1 },
+            { word: "Benefit", type: "n", ipa: "/ˈbenɪfɪt/", mean: "Lợi ích", unit: 1 },
+            { word: "Bug", type: "n", ipa: "/bʌɡ/", mean: "Con bọ", unit: 1 },
+            { word: "Cardboard", type: "n", ipa: "/ˈkɑːdbɔːd/", mean: "Bìa các tông", unit: 1 },
+            { word: "Dollhouse", type: "n", ipa: "/ˈdɒlhaʊs/", mean: "Nhà búp bê", unit: 1 },
+            { word: "Gardening", type: "n", ipa: "/ˈɡɑːdnɪŋ/", mean: "Làm vườn", unit: 1 },
+            { word: "Glue", type: "n", ipa: "/ɡluː/", mean: "Keo dán/ hồ", unit: 1 },
+            { word: "Horse riding", type: "n", ipa: "/ˈhɔːs raɪdɪŋ/", mean: "Cưỡi ngựa", unit: 1 },
+            { word: "Insect", type: "n", ipa: "/ˈɪnsekt/", mean: "Côn trùng", unit: 1 },
+            { word: "Jogging", type: "n", ipa: "/ˈdʒɒɡɪŋ/", mean: "Đi/ chạy bộ thư giãn", unit: 1 },
+            { word: "Making models", type: "n", ipa: "/ˈmeɪkɪŋ ˈmɒdlz/", mean: "Làm mô hình", unit: 1 },
+            { word: "Maturity", type: "n", ipa: "/məˈtʃʊərəti/", mean: "Sự trưởng thành", unit: 1 },
+            { word: "Patient", type: "adj", ipa: "/ˈpeɪʃnt/", mean: "Kiên nhẫn", unit: 1 },
+            { word: "Popular", type: "adj", ipa: "/ˈpɒpjələ(r)/", mean: "Được nhiều người ưa thích", unit: 1 },
+            { word: "Responsibility", type: "n", ipa: "/rɪˌspɒnsəˈbɪləti/", mean: "Sự chịu trách nhiệm", unit: 1 },
+            { word: "Set", type: "v", ipa: "/set/", mean: "(Mặt trời) lặn", unit: 1 },
+            { word: "Stress", type: "n", ipa: "/stres/", mean: "Sự căng thẳng", unit: 1 },
+            { word: "Take on", type: "v", ipa: "/teɪk ɒn/", mean: "Nhận thêm", unit: 1 },
+            { word: "Unusual", type: "adj", ipa: "/ʌnˈjuːʒuəl/", mean: "Khác thường", unit: 1 },
+            { word: "Valuable", type: "adj", ipa: "/ˈvæljuəbl/", mean: "Quý giá", unit: 1 },
+            { word: "Yoga", type: "n", ipa: "/ˈjəʊɡə/", mean: "Yoga", unit: 1 },
+
+            // Unit 2
+            { word: "Acne", type: "n", ipa: "/ˈækni/", mean: "Mụn trứng cá", unit: 2 },
+            { word: "Affect", type: "v", ipa: "/əˈfekt/", mean: "Tác động, ảnh hưởng đến", unit: 2 },
+            { word: "Avoid", type: "v", ipa: "/əˈvɔɪd/", mean: "Tránh", unit: 2 },
+            { word: "Chapped", type: "adj", ipa: "/tʃæpt/", mean: "Bị nứt nẻ, hiện tượng nứt nẻ trên da", unit: 2 },
+            { word: "Dim", type: "adj", ipa: "/dɪm/", mean: "Lờ mờ, không đủ sáng", unit: 2 },
+            { word: "Disease", type: "n", ipa: "/dɪˈziːz/", mean: "Bệnh", unit: 2 },
+            { word: "Eye drops", type: "n", ipa: "/aɪ drɒps/", mean: "Thuốc nhỏ mắt", unit: 2 },
+            { word: "Fat", type: "n", ipa: "/fæt/", mean: "Mỡ", unit: 2 },
+            { word: "Fit", type: "adj", ipa: "/fɪt/", mean: "Gọn gàng, cân đối", unit: 2 },
+            { word: "Health", type: "n", ipa: "/helθ/", mean: "Sức khoẻ", unit: 2 },
+            { word: "Healthy", type: "adj", ipa: "/ˈhelθi/", mean: "Khoẻ mạnh, lành mạnh", unit: 2 },
+            { word: "Indoors", type: "adv", ipa: "/ˌɪnˈdɔːz/", mean: "Trong nhà", unit: 2 },
+            { word: "Lip balm", type: "n", ipa: "/ˈlɪp bɑːm/", mean: "Kem bôi môi (chống nẻ)", unit: 2 },
+            { word: "Pimple", type: "v", ipa: "/ˈpɪmpl/", mean: "Mụn", unit: 2 },
+            { word: "Pop", type: "n", ipa: "/pɒp/", mean: "Nặn (mụn)", unit: 2 },
+            { word: "Protein", type: "n", ipa: "/ˈprəʊtiːn/", mean: "Chất đạm", unit: 2 },
+            { word: "Skin condition", type: "n", ipa: "/skɪn kənˈdɪʃn/", mean: "Tình trạng da", unit: 2 },
+            { word: "Soybean", type: "n", ipa: "/ˈsɔɪbiːn/", mean: "Đậu nành", unit: 2 },
+            { word: "Sunburn", type: "n", ipa: "/ˈsʌnbɜːn/", mean: "Sự cháy nắng", unit: 2 },
+            { word: "Tofu", type: "n", ipa: "/ˈtəʊfuː/", mean: "Đậu phụ", unit: 2 },
+            { word: "Virus", type: "n", ipa: "/ˈvaɪrəs/", mean: "(Con) vi rút", unit: 2 },
+            { word: "Vitamin", type: "n", ipa: "/ˈvɪtəmɪn/", mean: "Vitamin", unit: 2 },
+
+            // Unit 3
+            { word: "Board game", type: "n", ipa: "/ˈbɔːd ɡeɪm/", mean: "Trò chơi trên bàn cờ", unit: 3 },
+            { word: "Clean-up activity", type: "n", ipa: "/ˈkliːn ʌp ækˈtɪvəti/", mean: "Hoạt động dọn rửa", unit: 3 },
+            { word: "Collect", type: "v", ipa: "/kəˈlekt/", mean: "Thu thập, sưu tầm", unit: 3 },
+            { word: "Community", type: "n", ipa: "/kəˈmjuːnəti/", mean: "Cộng đồng", unit: 3 },
+            { word: "Community service", type: "n", ipa: "/kəˈmjuːnəti ˈsɜːvɪs/", mean: "Dịch vụ cộng đồng", unit: 3 },
+            { word: "Develop", type: "n", ipa: "/dɪˈveləp/", mean: "Phát triển", unit: 3 },
+            { word: "Donate", type: "v", ipa: "/dəʊˈneɪt/", mean: "Cho, tặng", unit: 3 },
+            { word: "Elderly", type: "adj", ipa: "/ˈeldəli/", mean: "Lớn tuổi, cao tuổi", unit: 3 },
+            { word: "Exchange", type: "v", ipa: "/ɪksˈtʃeɪndʒ/", mean: "Trao đổi", unit: 3 },
+            { word: "Flooded", type: "adj", ipa: "/ˈflʌdɪd/", mean: "Bị lũ lụt", unit: 3 },
+            { word: "Homeless", type: "adj", ipa: "/ˈhəʊmləs/", mean: "Vô gia cư, không có gia đình", unit: 3 },
+            { word: "Mountainous", type: "adj", ipa: "/ˈmaʊntənəs/", mean: "Vùng núi", unit: 3 },
+            { word: "Nursing", type: "n", ipa: "/ˈnɜːsɪŋ/", mean: "Chăm sóc, điều dưỡng", unit: 3 },
+            { word: "Nursing home", type: "n", ipa: "/ˈnɜːsɪŋ həʊm/", mean: "Viện dưỡng lão", unit: 3 },
+            { word: "Orphanage", type: "n", ipa: "/ˈɔːfənɪdʒ/", mean: "Trại trẻ mồ côi", unit: 3 },
+            { word: "Plant", type: "v", ipa: "/plɑːnt/", mean: "Trồng cây", unit: 3 },
+            { word: "Proud", type: "adj", ipa: "/praʊd/", mean: "Tự hào", unit: 3 },
+            { word: "Provide", type: "v", ipa: "/prəˈvaɪd/", mean: "Cung cấp", unit: 3 },
+            { word: "Rural area", type: "n", ipa: "/ˈrʊərəl ˈeəriə/", mean: "Vùng nông thôn", unit: 3 },
+            { word: "Skill", type: "n", ipa: "/skɪl/", mean: "Kĩ năng", unit: 3 },
+            { word: "Teenager", type: "n", ipa: "/ˈtiːneɪdʒə(r)/", mean: "Thanh thiếu niên", unit: 3 },
+            { word: "Volunteer", type: "v, n", ipa: "/ˌvɒlənˈtɪə(r)/", mean: "Tình nguyện viên", unit: 3 },
+
+            // Unit 4
+            { word: "Anthem", type: "n", ipa: "/ˈænθəm/", mean: "Bài quốc ca", unit: 4 },
+            { word: "Character", type: "n", ipa: "/ˈkærəktə(r)/", mean: "Nhân vật (trong phim, tác phẩm...)", unit: 4 },
+            { word: "Compose", type: "v", ipa: "/kəmˈpəʊz/", mean: "Soạn, biên soạn", unit: 4 },
+            { word: "Composer", type: "n", ipa: "/kəmˈpəʊzə(r)/", mean: "Nhà soạn nhạc, nhạc sĩ", unit: 4 },
+            { word: "Concert", type: "n", ipa: "/ˈkɒnsət/", mean: "Buổi hoà nhạc", unit: 4 },
+            { word: "Control", type: "v", ipa: "/kənˈtrəʊl/", mean: "Điều khiển", unit: 4 },
+            { word: "Country music", type: "n", ipa: "/ˈkʌntri mjuːzɪk/", mean: "Nhạc đồng quê", unit: 4 },
+            { word: "Exhibition", type: "n", ipa: "/ˌeksɪˈbɪʃn/", mean: "Cuộc triển lãm", unit: 4 },
+            { word: "Folk music", type: "n", ipa: "/ˈfəʊk mjuːzɪk/", mean: "Nhạc dân gian, nhạc truyền thống", unit: 4 },
+            { word: "Gallery", type: "n", ipa: "/ˈɡæləri/", mean: "Phòng triển lãm tranh", unit: 4 },
+            { word: "Musical instrument", type: "n", ipa: "/ˈmjuːzɪkl ˈɪnstrəmənt/", mean: "Nhạc cụ", unit: 4 },
+            { word: "Originate", type: "v", ipa: "/əˈrɪdʒɪneɪt/", mean: "Bắt nguồn, xuất phát từ", unit: 4 },
+            { word: "Perform", type: "v", ipa: "/pəˈfɔːm/", mean: "Biểu diễn, trình diễn", unit: 4 },
+            { word: "Performance", type: "n", ipa: "/pəˈfɔːməns/", mean: "Sự trình diễn, tiết mục biểu diễn", unit: 4 },
+            { word: "Photography", type: "n", ipa: "/fəˈtɒɡrəfi/", mean: "Nhiếp ảnh", unit: 4 },
+            { word: "Portrait", type: "n", ipa: "/ˈpɔːtreɪt/", mean: "Bức chân dung", unit: 4 },
+            { word: "Prefer", type: "v", ipa: "/prɪˈfɜː(r)/", mean: "Thích hơn", unit: 4 },
+            { word: "Puppet", type: "n", ipa: "/ˈpʌpɪt/", mean: "Con rối", unit: 4 },
+            { word: "Sculpture", type: "n", ipa: "/ˈskʌlptʃə(r)/", mean: "Điêu khắc, tác phẩm điêu khắc", unit: 4 },
+            { word: "Water puppetry", type: "n", ipa: "/ˈwɔːtə(r) ˈpʌpɪtri/", mean: "Múa rối nước", unit: 4 },
+
+            // Unit 5
+            { word: "Beef", type: "n", ipa: "/biːf/", mean: "Thịt bò", unit: 5 },
+            { word: "Butter", type: "n", ipa: "/ˈbʌtə(r)/", mean: "Bơ", unit: 5 },
+            { word: "Dish", type: "n", ipa: "/dɪʃ/", mean: "Món ăn", unit: 5 },
+            { word: "Eel", type: "n", ipa: "/iːl/", mean: "Con lươn", unit: 5 },
+            { word: "Flour", type: "n", ipa: "/ˈflaʊə(r)/", mean: "Bột", unit: 5 },
+            { word: "Fried", type: "adj", ipa: "/fraɪd/", mean: "Được chiên/ rán", unit: 5 },
+            { word: "Green tea", type: "n", ipa: "/ˌɡriːn ˈtiː/", mean: "Chè xanh, trà xanh", unit: 5 },
+            { word: "Ingredient", type: "n", ipa: "/ɪnˈɡriːdiənt/", mean: "Thành phần nguyên liệu", unit: 5 },
+            { word: "Juice", type: "n", ipa: "/dʒuːs/", mean: "Nước ép", unit: 5 },
+            { word: "Lemonade", type: "n", ipa: "/ˌleməˈneɪd/", mean: "Nước chanh", unit: 5 },
+            { word: "Mineral water", type: "n", ipa: "/ˈmɪnərəl wɔːtə(r)/", mean: "Nước khoáng", unit: 5 },
+            { word: "Noodles", type: "n", ipa: "/ˈnuːdl/", mean: "Mì, mì sợi, phở", unit: 5 },
+            { word: "Omelette", type: "n", ipa: "/ˈɒmlət/", mean: "Trứng tráng", unit: 5 },
+            { word: "Onion", type: "n", ipa: "/ˈʌnjən/", mean: "Củ hành", unit: 5 },
+            { word: "Pancake", type: "n", ipa: "/ˈpænkeɪk/", mean: "Bánh kếp", unit: 5 },
+            { word: "Pepper", type: "n", ipa: "/ˈpepə(r)/", mean: "Hạt tiêu", unit: 5 },
+            { word: "Pie", type: "n", ipa: "/paɪ/", mean: "Bánh nướng, bánh hấp", unit: 5 },
+            { word: "Pork", type: "n", ipa: "/pɔːk/", mean: "Thịt lợn", unit: 5 },
+            { word: "Recipe", type: "n", ipa: "/ˈresəpi/", mean: "Công thức làm món ăn", unit: 5 },
+            { word: "Roast", type: "adj", ipa: "/rəʊst/", mean: "(Được) quay, nướng", unit: 5 },
+            { word: "Salt", type: "n", ipa: "/sɔːlt/", mean: "Muối", unit: 5 },
+            { word: "Sauce", type: "n", ipa: "/sɔːs/", mean: "Nước chấm, nước xốt", unit: 5 },
+            { word: "Shrimp", type: "n", ipa: "/ʃrɪmp/", mean: "Con tôm", unit: 5 },
+            { word: "Soup", type: "n", ipa: "/suːp/", mean: "Xúp, canh, cháo", unit: 5 },
+            { word: "Spring roll", type: "n", ipa: "/ˌsprɪŋ ˈrəʊl/", mean: "Nem rán", unit: 5 },
+            { word: "Tablespoon", type: "n", ipa: "/ˈteɪblspuːn/", mean: "Thìa/ muỗng xúp", unit: 5 },
+            { word: "Teaspoon", type: "n", ipa: "/ˈtiːspuːn/", mean: "Thìa nhỏ quấy trà", unit: 5 },
+            { word: "Toast", type: "n", ipa: "/təʊst/", mean: "Bánh mì nướng", unit: 5 },
+
+            // Unit 6
+            { word: "Celebrate", type: "v", ipa: "/ˈselɪbreɪt/", mean: "Kỉ niệm, tổ chức", unit: 6 },
+            { word: "Entrance exam", type: "n", ipa: "/ˈentrəns ɪɡˈzæm/", mean: "Kì thi đầu vào", unit: 6 },
+            { word: "Equipment", type: "n", ipa: "/ɪˈkwɪpmənt/", mean: "Đồ dùng, thiết bị", unit: 6 },
+            { word: "Extra", type: "adj", ipa: "/ˈekstrə/", mean: "Thêm", unit: 6 },
+            { word: "Facility", type: "n", ipa: "/fəˈsɪləti/", mean: "Thiết bị, tiện nghi", unit: 6 },
+            { word: "Gifted", type: "adj", ipa: "/ˈɡɪftɪd/", mean: "Năng khiếu", unit: 6 },
+            { word: "Laboratory", type: "n", ipa: "/ləˈbɒrətri/", mean: "Phòng thí nghiệm", unit: 6 },
+            { word: "Lower secondary school", type: "n", ipa: "/ˈləʊə(r) ˈsekəndri skuːl/", mean: "Trường THCS", unit: 6 },
+            { word: "Midterm", type: "adj", ipa: "/ˌmɪdˈtɜːm/", mean: "Giữa học kì", unit: 6 },
+            { word: "Outdoor", type: "adj", ipa: "/ˈaʊtdɔː(r)/", mean: "Ngoài trời", unit: 6 },
+            { word: "Private", type: "adj", ipa: "/ˈpraɪvət/", mean: "Riêng tư", unit: 6 },
+            { word: "Projector", type: "n", ipa: "/prəˈdʒektə(r)/", mean: "Máy chiếu", unit: 6 },
+            { word: "Resource", type: "n", ipa: "/rɪˈsɔːs/", mean: "Tài nguyên", unit: 6 },
+            { word: "Royal", type: "adj", ipa: "/ˈrɔɪəl/", mean: "Thuộc hoàng gia", unit: 6 },
+            { word: "Service", type: "n", ipa: "/ˈsɜːvɪs/", mean: "Dịch vụ", unit: 6 },
+            { word: "Share", type: "v", ipa: "/ʃeə(r)/", mean: "Chia sẻ", unit: 6 },
+            { word: "Talented", type: "adj", ipa: "/ˈtæləntɪd/", mean: "Tài năng", unit: 6 },
+            { word: "Well-known", type: "adj", ipa: "/ˌwel ˈnəʊn/", mean: "Nổi tiếng", unit: 6 },
+
+            // Unit 7
+            { word: "Bumpy", type: "adj", ipa: "/ˈbʌmpi/", mean: "Lồi lõm, nhiều ổ gà", unit: 7 },
+            { word: "Distance", type: "n", ipa: "/ˈdɪstəns/", mean: "Khoảng cách", unit: 7 },
+            { word: "Fine", type: "v", ipa: "/faɪn/", mean: "Phạt", unit: 7 },
+            { word: "Fly", type: "v", ipa: "/flaɪ/", mean: "Bay, lái máy bay", unit: 7 },
+            { word: "Handlebars", type: "n", ipa: "/ˈhændlbɑː(r)z/", mean: "Tay lái, ghi đông", unit: 7 },
+            { word: "Lane", type: "n", ipa: "/leɪn/", mean: "Làn đường", unit: 7 },
+            { word: "Obey traffic rules", type: "v", ipa: "/əˈbeɪ ˈtræfɪk ruːlz/", mean: "Tuân theo luật giao thông", unit: 7 },
+            { word: "Passenger", type: "n", ipa: "/ˈpæsɪndʒə(r)/", mean: "Hành khách", unit: 7 },
+            { word: "Pavement", type: "n", ipa: "/ˈpeɪvmənt/", mean: "Vỉa hè (cho người đi bộ)", unit: 7 },
+            { word: "Pedestrian", type: "n", ipa: "/pəˈdestriən/", mean: "Người đi bộ", unit: 7 },
+            { word: "Plane", type: "n", ipa: "/pleɪn/", mean: "Máy bay", unit: 7 },
+            { word: "Road sign / Traffic sign", type: "n", ipa: "/ˈrəʊd saɪn/", mean: "Biển báo giao thông", unit: 7 },
+            { word: "Roof", type: "n", ipa: "/ruːf/", mean: "Nóc xe, mái nhà", unit: 7 },
+            { word: "Safety", type: "n", ipa: "/ˈseɪfti/", mean: "Sự an toàn", unit: 7 },
+            { word: "Seat belt", type: "n", ipa: "/ˈsiːt belt/", mean: "Đai an toàn", unit: 7 },
+            { word: "Signal", type: "n", ipa: "/ˈsɪɡnəl/", mean: "Tín hiệu, dấu hiệu", unit: 7 },
+            { word: "Traffic jam", type: "n", ipa: "/ˈtræfɪk dʒæm/", mean: "Tắc đường", unit: 7 },
+            { word: "Traffic rule/ law", type: "n", ipa: "/ˈtræfɪk ruːl/", mean: "Luật giao thông", unit: 7 },
+            { word: "Vehicle", type: "n", ipa: "/ˈviːəkl/", mean: "Xe cộ, phương tiện giao thông", unit: 7 },
+            { word: "Zebra crossing", type: "n", ipa: "/ˌzebrə ˈkrɒsɪŋ/", mean: "Vạch kẻ cho người đi bộ sang đường", unit: 7 },
+
+            // Unit 8
+            { word: "Acting", type: "n", ipa: "/ˈæktɪŋ/", mean: "Diễn xuất", unit: 8 },
+            { word: "Comedy", type: "n", ipa: "/ˈkɒmədi/", mean: "Phim hài", unit: 8 },
+            { word: "Confusing", type: "adj", ipa: "/kənˈfjuːzɪŋ/", mean: "Khó hiểu, gây bối rối", unit: 8 },
+            { word: "Director", type: "n", ipa: "/dəˈrektə(r)/", mean: "Đạo diễn", unit: 8 },
+            { word: "Documentary", type: "n", ipa: "/ˌdɒkjuˈmentri/", mean: "Phim tài liệu", unit: 8 },
+            { word: "Dull", type: "adj", ipa: "/dʌl/", mean: "Buồn tẻ, chán ngắt", unit: 8 },
+            { word: "Enjoyable", type: "adj", ipa: "/ɪnˈdʒɔɪəbl/", mean: "Thú vị, thích thú", unit: 8 },
+            { word: "Fantasy", type: "n", ipa: "/ˈfæntəsi/", mean: "Phim giả tưởng", unit: 8 },
+            { word: "Frightening", type: "adj", ipa: "/ˈfraɪtnɪŋ/", mean: "Làm sợ hãi, rùng rợn", unit: 8 },
+            { word: "Gripping", type: "adj", ipa: "/ˈɡrɪpɪŋ/", mean: "Hấp dẫn, thú vị", unit: 8 },
+            { word: "Horror film", type: "n", ipa: "/ˈhɒrə(r) fɪlm/", mean: "Phim kinh dị", unit: 8 },
+            { word: "Moving", type: "adj", ipa: "/ˈmuːvɪŋ/", mean: "Cảm động", unit: 8 },
+            { word: "Must-see", type: "n", ipa: "/mʌst siː/", mean: "Bộ phim hấp dẫn, cần xem", unit: 8 },
+            { word: "Poster", type: "n", ipa: "/ˈpəʊstə(r)/", mean: "Áp phích quảng cáo", unit: 8 },
+            { word: "Review", type: "n", ipa: "/rɪˈvjuː/", mean: "Bài phê bình", unit: 8 },
+            { word: "Scary", type: "adj", ipa: "/ˈskeəri/", mean: "Sợ hãi, rùng rợn", unit: 8 },
+            { word: "Science fiction", type: "n", ipa: "/ˌsaɪəns ˈfɪkʃn/", mean: "Thể loại phim khoa học viễn tưởng", unit: 8 },
+            { word: "Shocking", type: "adj", ipa: "/ˈʃɒkɪŋ/", mean: "Làm sửng sốt", unit: 8 },
+            { word: "Star", type: "v", ipa: "/stɑː(r)/", mean: "Đóng vai chính", unit: 8 },
+            { word: "Survey", type: "n", ipa: "/ˈsɜːveɪ/", mean: "Cuộc khảo sát", unit: 8 },
+            { word: "Twin", type: "n", ipa: "/twɪn/", mean: "Đứa trẻ sinh đôi", unit: 8 },
+            { word: "Violent", type: "adj", ipa: "/ˈvaɪələnt/", mean: "Có nhiều cảnh bạo lực", unit: 8 },
+            { word: "Wizard", type: "n", ipa: "/ˈwɪzəd/", mean: "Phù thuỷ", unit: 8 },
+
+            // Unit 9
+            { word: "Candy", type: "n", ipa: "/ˈkændi/", mean: "Kẹo", unit: 9 },
+            { word: "Cannes Film Festival", type: "n", ipa: "/ˈkæn fɪlm ˈfestɪvl/", mean: "Liên hoan phim Cannes", unit: 9 },
+            { word: "Carve", type: "v", ipa: "/kɑːv/", mean: "Chạm, khắc", unit: 9 },
+            { word: "Costume", type: "n", ipa: "/ˈkɒstjuːm/", mean: "Trang phục", unit: 9 },
+            { word: "Decorate", type: "v", ipa: "/ˈdekəreɪt/", mean: "Trang trí", unit: 9 },
+            { word: "Decoration", type: "n", ipa: "/ˌdekəˈreɪʃn/", mean: "Đồ trang trí", unit: 9 },
+            { word: "Disappointing", type: "adj", ipa: "/ˌdɪsəˈpɔɪntɪŋ/", mean: "Đáng thất vọng", unit: 9 },
+            { word: "Disappointment", type: "n", ipa: "/ˌdɪsəˈpɒɪntmənt/", mean: "Sự thất vọng", unit: 9 },
+            { word: "Dutch", type: "adj, n", ipa: "/dʌtʃ/", mean: "Thuộc về Hà Lan / Người Hà Lan", unit: 9 },
+            { word: "Easter", type: "n", ipa: "/ˈiːstə(r)/", mean: "Lễ Phục sinh", unit: 9 },
+            { word: "Feast", type: "n", ipa: "/fiːst/", mean: "Bữa tiệc", unit: 9 },
+            { word: "Feature", type: "v", ipa: "/ˈfiːtʃə(r)/", mean: "Trình diễn đặc biệt", unit: 9 },
+            { word: "Fireworks display", type: "n", ipa: "/ˈfaɪəwɜːk dɪˈspleɪ/", mean: "Bắn pháo hoa", unit: 9 },
+            { word: "Float", type: "n", ipa: "/fləʊt/", mean: "Xe diễu hành", unit: 9 },
+            { word: "Folk dance", type: "n", ipa: "/fəʊk dɑːns/", mean: "Điệu nhảy/ múa dân gian", unit: 9 },
+            { word: "Mid-Autumn Festival", type: "n", ipa: "/mɪd ˈɔːtəm ˈfestɪvl/", mean: "Tết Trung thu", unit: 9 },
+            { word: "(the) Netherlands", type: "n", ipa: "/ˈneðələndz/", mean: "Nước Hà Lan", unit: 9 },
+            { word: "Parade", type: "n", ipa: "/pəˈreɪd/", mean: "Cuộc diễu hành", unit: 9 },
+            { word: "Prosperity", type: "n", ipa: "/prɒˈsperəti/", mean: "Sự thịnh vượng", unit: 9 },
+            { word: "Symbol", type: "n", ipa: "/ˈsɪmbl/", mean: "Biểu tượng", unit: 9 },
+            { word: "Take part in", type: "v", ipa: "/teɪk pɑːt ɪn/", mean: "Tham gia", unit: 9 },
+            { word: "Thanksgiving", type: "n", ipa: "/ˌθæŋksˈɡɪvɪŋ/", mean: "Lễ Tạ ơn", unit: 9 },
+
+            // Unit 10
+            { word: "Available", type: "adj", ipa: "/əˈveɪləbl/", mean: "Sẵn có", unit: 10 },
+            { word: "Electricity", type: "n", ipa: "/ɪˌlekˈtrɪsəti/", mean: "Điện năng", unit: 10 },
+            { word: "Energy", type: "n", ipa: "/ˈenədʒi/", mean: "Năng lượng", unit: 10 },
+            { word: "Hydro", type: "adj", ipa: "/ˈhaɪdrəʊ/", mean: "Liên quan đến nước", unit: 10 },
+            { word: "Light bulb", type: "n", ipa: "/ˈlaɪt bʌlb/", mean: "Bóng đèn", unit: 10 },
+            { word: "Limited", type: "adj", ipa: "/ˈlɪmɪtɪd/", mean: "Bị hạn chế", unit: 10 },
+            { word: "Non-renewable", type: "adj", ipa: "/ˌnɒn rɪˈnjuːəbl/", mean: "Không thể tái tạo", unit: 10 },
+            { word: "Nuclear", type: "adj", ipa: "/ˈnjuːkliə(r)/", mean: "Thuộc về hạt nhân", unit: 10 },
+            { word: "Overcool", type: "v", ipa: "/ˌəʊvəˈkuːl/", mean: "Làm cho quá lạnh", unit: 10 },
+            { word: "Overheat", type: "v", ipa: "/ˌəʊvəˈhiːt/", mean: "Làm cho quá nóng", unit: 10 },
+            { word: "Panel", type: "n", ipa: "/ˈpænl/", mean: "Tấm ghép", unit: 10 },
+            { word: "Produce", type: "v", ipa: "/prəˈdjuːs/", mean: "Sản xuất", unit: 10 },
+            { word: "Reduce", type: "v", ipa: "/rɪˈdjuːs/", mean: "Giảm", unit: 10 },
+            { word: "Renewable", type: "adj", ipa: "/rɪˈnjuːəbl/", mean: "Có thể tái tạo", unit: 10 },
+            { word: "Replace", type: "v", ipa: "/rɪˈpleɪs/", mean: "Thay thế", unit: 10 },
+            { word: "Solar", type: "adj", ipa: "/ˈsəʊlə(r)/", mean: "Liên quan đến mặt trời", unit: 10 },
+            { word: "Source", type: "n", ipa: "/sɔːs/", mean: "Nguồn", unit: 10 },
+            { word: "Syllable", type: "n", ipa: "/ˈsɪləbl/", mean: "Âm tiết", unit: 10 },
+            { word: "Tap", type: "n", ipa: "/tæp/", mean: "Vòi", unit: 10 },
+            { word: "Warm", type: "v", ipa: "/wɔːm/", mean: "(Làm cho) ấm lên, nóng lên", unit: 10 },
+
+            // Unit 11
+            { word: "Appear", type: "v", ipa: "/əˈpɪə(r)/", mean: "Xuất hiện", unit: 11 },
+            { word: "Autopilot", type: "adj, n", ipa: "/ˈɔːtəʊpaɪlət/", mean: "Lái tự động", unit: 11 },
+            { word: "Bamboo-copter", type: "n", ipa: "/ˌbæmˈbuː ˈkɒptə(r)/", mean: "Chong chóng tre", unit: 11 },
+            { word: "Comfortable", type: "adj", ipa: "/ˈkʌmftəbl/", mean: "Thoải mái, đủ tiện nghi", unit: 11 },
+            { word: "Convenient", type: "adj", ipa: "/kənˈviːniənt/", mean: "Thuận tiện, tiện lợi", unit: 11 },
+            { word: "Disappear", type: "v", ipa: "/ˌdɪsəˈpɪə(r)/", mean: "Biến mất", unit: 11 },
+            { word: "Driverless", type: "adj", ipa: "/ˈdraɪvələs/", mean: "Không người lái", unit: 11 },
+            { word: "Eco-friendly", type: "adj", ipa: "/ˌiːkəʊ ˈfrendli/", mean: "Thân thiện với môi trường", unit: 11 },
+            { word: "Economical", type: "adj", ipa: "/ˌiːkəˈnɒmɪkl/", mean: "Tiết kiệm nhiên liệu", unit: 11 },
+            { word: "Fume", type: "n", ipa: "/fjuːm/", mean: "Khói", unit: 11 },
+            { word: "Function", type: "n", ipa: "/ˈfʌŋkʃn/", mean: "Chức năng", unit: 11 },
+            { word: "Hyperloop", type: "n", ipa: "/ˈhaɪpə(r) luːp/", mean: "Hệ thống giao thông tốc độ cao", unit: 11 },
+            { word: "Mode of travel", type: "n", ipa: "/məʊd əv ˈtrævl/", mean: "Phương thức đi lại", unit: 11 },
+            { word: "Pedal", type: "v", ipa: "/ˈpedl/", mean: "Đạp (xe đạp)", unit: 11 },
+            { word: "Run on", type: "v", ipa: "/rʌn ɒn/", mean: "Chạy bằng (nhiên liệu nào)", unit: 11 },
+            { word: "Sail", type: "v", ipa: "/seɪl/", mean: "Lướt buồm", unit: 11 },
+            { word: "SkyTran", type: "n", ipa: "/skaɪtræn/", mean: "Hệ thống tàu điện trên không", unit: 11 },
+            { word: "Solar-powered", type: "adj", ipa: "/ˈsəʊlə(r) ˈpaʊəd/", mean: "Chạy bằng năng lượng mặt trời", unit: 11 },
+            { word: "Solar-powered ship", type: "n", ipa: "/ˈsəʊlə(r) ˈpaʊəd ʃɪp/", mean: "Tàu thuỷ chạy bằng năng lượng mặt trời", unit: 11 },
+            { word: "Solowheel", type: "n", ipa: "/ˈsəʊləʊwiːl/", mean: "Phương tiện tự hành cá nhân một bánh", unit: 11 },
+            { word: "Walkcar", type: "n", ipa: "/wɔːk kɑː(r)/", mean: "Ô tô tự hành dùng chân", unit: 11 },
+            { word: "Teleporter", type: "n", ipa: "/ˈtelɪpɔːtə(r)/", mean: "Phương tiện di chuyển tức thời", unit: 11 },
+
+            // Unit 12
+            { word: "Amazement", type: "n", ipa: "/əˈmeɪzmənt/", mean: "Sự ngạc nhiên, kinh ngạc (một cách thích thú)", unit: 12 },
+            { word: "Amazing", type: "adj", ipa: "/əˈmeɪzɪŋ/", mean: "Ngạc nhiên (một cách thích thú)", unit: 12 },
+            { word: "Ancient", type: "adj", ipa: "/ˈeɪnʃənt/", mean: "Cổ, lâu đời", unit: 12 },
+            { word: "Australia", type: "n", ipa: "/ɒˈstreɪliə/", mean: "Nước Úc", unit: 12 },
+            { word: "Canada", type: "n", ipa: "/ˈkænədə/", mean: "Nước Ca-na-đa", unit: 12 },
+            { word: "Capital", type: "n", ipa: "/ˈkæpɪtl/", mean: "Thủ đô", unit: 12 },
+            { word: "Castle", type: "n", ipa: "/ˈkɑːsl/", mean: "Pháo đài", unit: 12 },
+            { word: "Coastline", type: "n", ipa: "/ˈkəʊstlaɪn/", mean: "Đường bờ biển", unit: 12 },
+            { word: "Culture", type: "n", ipa: "/ˈkʌltʃə(r)/", mean: "Nền văn hoá", unit: 12 },
+            { word: "Historic", type: "adj", ipa: "/hɪˈstɒrɪk/", mean: "Thuộc về lịch sử", unit: 12 },
+            { word: "Island country", type: "n", ipa: "/ˈaɪlənd ˈkʌntri/", mean: "Đảo quốc", unit: 12 },
+            { word: "Kilt", type: "n", ipa: "/kɪlt/", mean: "Váy truyền thống của đàn ông Xcốt-len", unit: 12 },
+            { word: "Landscape", type: "n", ipa: "/ˈlændskeɪp/", mean: "Phong cảnh", unit: 12 },
+            { word: "local", type: "adj", ipa: "/ˈləʊkl/", mean: "Thuộc về địa phương", unit: 12 },
+            { word: "Native", type: "adj", ipa: "/ˈneɪtɪv/", mean: "(cái gì, con gì) nguyên thuỷ", unit: 12 },
+            { word: "New Zealand", type: "n", ipa: "/ˌnjuː ˈziːlənd/", mean: "Nước Niu-di-lân", unit: 12 },
+            { word: "Penguin", type: "n", ipa: "/ˈpeŋɡwɪn/", mean: "Chim cánh cụt", unit: 12 },
+            { word: "Shining", type: "adj", ipa: "/ʃaɪnɪŋ/", mean: "Chói chang chan hoà ánh nắng", unit: 12 },
+            { word: "Sunset", type: "n", ipa: "/ˈsʌnset/", mean: "Mặt trời lặn", unit: 12 },
+            { word: "Tattoo", type: "n", ipa: "/təˈtuː/", mean: "Hình xăm", unit: 12 },
+            { word: "(The) UK", type: "n", ipa: "/ˌjuː ˈkeɪ/", mean: "Liên hiệp Vương quốc Anh và Bắc Ai-len", unit: 12 },
+            { word: "(The) USA", type: "n", ipa: "/ˌjuː es ˈeɪ/", mean: "Hợp chủng quốc Hoa Kì", unit: 12 },
+            { word: "Tower", type: "n", ipa: "/ˈtaʊə(r)/", mean: "Tháp", unit: 12 }
+        ];
+
+        const shuffle = (array) => [...array].sort(() => Math.random() - 0.5);
+
+        // FULL BODY READING MASCOT MOSCO (Duolingo Style Reading Mascot)
+        const MoscoAvatar = ({ mood = "happy", size = "md" }) => {
+            const sizes = { sm: "w-16 h-16", md: "w-28 h-28", lg: "w-40 h-40" };
+            return (
+                <div className={`relative ${sizes[size]} mosco-float flex items-center justify-center`}>
+                    <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-md">
+                        {/* Shadow / Base Cushion */}
+                        <ellipse cx="60" cy="112" rx="42" ry="7" fill="rgba(105, 201, 255, 0.25)" />
+                        
+                        {/* Stacked Books Base */}
+                        <rect x="25" y="100" width="70" height="10" rx="3" fill="#FF9A9E" stroke="#E15B64" strokeWidth="1.5" />
+                        <polygon points="25,100 28,103 28,110 25,110" fill="#E15B64" />
+                        <rect x="30" y="93" width="60" height="8" rx="2" fill="#FEE140" stroke="#F1B122" strokeWidth="1.5" />
+
+                        {/* Mosco Body (Cute Robot Body) */}
+                        <path d="M 38,55 C 38,35 82,35 82,55 C 82,80 78,92 60,92 C 42,92 38,80 38,55 Z" fill="#FFFFFF" stroke="#69C9FF" strokeWidth="3.5" />
+                        
+                        {/* Feet */}
+                        <ellipse cx="46" cy="94" rx="8" ry="4" fill="#69C9FF" />
+                        <ellipse cx="74" cy="94" rx="8" ry="4" fill="#69C9FF" />
+
+                        {/* Visor / Face Area */}
+                        <ellipse cx="60" cy="52" rx="18" ry="13" fill="#1E293B" />
+
+                        {/* Eyes based on mood */}
+                        {mood === "happy" && (
+                            <>
+                                <circle cx="53" cy="51" r="3" fill="#FFFFFF" />
+                                <circle cx="67" cy="51" r="3" fill="#FFFFFF" />
+                                <path d="M 57,55 Q 60,58 63,55" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+                            </>
+                        )}
+                        {mood === "wink" && (
+                            <>
+                                <path d="M 50,51 Q 53,48 56,51" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+                                <circle cx="67" cy="51" r="3" fill="#FFFFFF" />
+                                <path d="M 57,56 Q 60,59 63,56" fill="none" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" />
+                            </>
+                        )}
+                        {mood === "think" && (
+                            <>
+                                <circle cx="53" cy="50" r="2.5" fill="#FFFFFF" />
+                                <circle cx="67" cy="50" r="2.5" fill="#FFFFFF" />
+                                <line x1="56" y1="56" x2="64" y2="56" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" />
+                            </>
+                        )}
+
+                        {/* Headphones/Ears */}
+                        <circle cx="36" cy="52" r="5" fill="#8EF0D2" stroke="#69C9FF" strokeWidth="2" />
+                        <circle cx="84" cy="52" r="5" fill="#8EF0D2" stroke="#69C9FF" strokeWidth="2" />
+
+                        {/* Top Antenna */}
+                        <line x1="60" y1="36" x2="60" y2="26" stroke="#69C9FF" strokeWidth="2.5" />
+                        <polygon points="60,20 62,24 66,24 63,26 64,30 60,28 56,30 57,26 54,24 58,24" fill="#8EF0D2" />
+
+                        {/* Arms Holding Open Book */}
+                        {/* Left Arm */}
+                        <path d="M 40,65 Q 32,70 42,76" fill="none" stroke="#69C9FF" strokeWidth="3.5" strokeLinecap="round" />
+                        {/* Right Arm */}
+                        <path d="M 80,65 Q 88,70 78,76" fill="none" stroke="#69C9FF" strokeWidth="3.5" strokeLinecap="round" />
+
+                        {/* OPEN BOOK IN HANDS */}
+                        {/* Left Page */}
+                        <path d="M 60,78 Q 48,72 38,76 L 38,88 Q 48,84 60,88 Z" fill="#E2F5FF" stroke="#3B82F6" strokeWidth="1.5" />
+                        {/* Right Page */}
+                        <path d="M 60,78 Q 72,72 82,76 L 82,88 Q 72,84 60,88 Z" fill="#FFFFFF" stroke="#3B82F6" strokeWidth="1.5" />
+                        {/* Book Spine */}
+                        <line x1="60" y1="78" x2="60" y2="88" stroke="#2563EB" strokeWidth="2" />
+                        {/* Page Lines */}
+                        <line x1="43" y1="80" x2="54" y2="78" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="42" y1="83" x2="52" y2="81" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="66" y1="78" x2="77" y2="80" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="68" y1="81" x2="78" y2="83" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [showSplash, setShowSplash] = useState(true);
+            const [splashProgress, setSplashProgress] = useState(0);
+            
+            const [selectedSection, setSelectedSection] = useState('review1');
+            const [mode, setMode] = useState('flashcard');
+            
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [isFlipped, setIsFlipped] = useState(false);
+            
+            // Slide animation state for NotebookLM transition effect
+            const [slideDirection, setSlideDirection] = useState('next'); // 'next' or 'prev'
+            const [slideKey, setSlideKey] = useState(0);
+
+            const [mcqQuestions, setMcqQuestions] = useState([]);
+            const [writtenQuestions, setWrittenQuestions] = useState([]);
+            const [mcqAnswers, setMcqAnswers] = useState({});
+            const [writtenUserAnswers, setWrittenUserAnswers] = useState({});
+            const [writtenValue, setWrittenValue] = useState("");
+            
+            const [mcqScore, setMcqScore] = useState(0);
+            const [writtenScore, setWrittenScore] = useState(0);
+
+            // Splash screen progress
+            useEffect(() => {
+                if (showSplash) {
+                    const interval = setInterval(() => {
+                        setSplashProgress(prev => {
+                            if (prev >= 100) {
+                                clearInterval(interval);
+                                setTimeout(() => setShowSplash(false), 300);
+                                return 100;
+                            }
+                            return prev + 5;
+                        });
+                    }, 35);
+                    return () => clearInterval(interval);
+                }
+            }, [showSplash]);
+
+            // Filter vocab by Review section
+            const currentVocabList = useMemo(() => {
+                if (selectedSection === 'review1') return VOCAB_DATA.filter(v => v.unit >= 1 && v.unit <= 3);
+                if (selectedSection === 'review2') return VOCAB_DATA.filter(v => v.unit >= 4 && v.unit <= 6);
+                if (selectedSection === 'review3') return VOCAB_DATA.filter(v => v.unit >= 7 && v.unit <= 9);
+                if (selectedSection === 'review4') return VOCAB_DATA.filter(v => v.unit >= 10 && v.unit <= 12);
+                return VOCAB_DATA;
+            }, [selectedSection]);
+
+            const handleSectionChange = (section) => {
+                setSelectedSection(section);
+                setMode('flashcard');
+                setCurrentIndex(0);
+                setIsFlipped(false);
+                setSlideKey(prev => prev + 1);
+            };
+
+            const speakWord = (text, e) => {
+                if (e) e.stopPropagation();
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const cleanText = text.replace(/\(The\)/gi, '').replace(/\(r\)/gi, '');
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+                }
+            };
+
+            const nextCard = () => {
+                setIsFlipped(false);
+                setSlideDirection('next');
+                setSlideKey(prev => prev + 1);
+
+                if (currentIndex < currentVocabList.length - 1) {
+                    setCurrentIndex(prev => prev + 1);
+                } else {
+                    startQuiz();
+                }
+            };
+
+            const prevCard = () => {
+                if (currentIndex > 0) {
+                    setIsFlipped(false);
+                    setSlideDirection('prev');
+                    setSlideKey(prev => prev + 1);
+                    setCurrentIndex(prev => prev - 1);
+                }
+            };
+
+            // Keyboard shortcuts navigation
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (mode !== 'flashcard' || showSplash) return;
+
+                    if (e.code === 'ArrowUp') {
+                        e.preventDefault();
+                        speakWord(currentVocabList[currentIndex].word);
+                    } else if (e.code === 'ArrowDown' || e.code === 'Space') {
+                        e.preventDefault();
+                        setIsFlipped(prev => !prev);
+                    } else if (e.code === 'ArrowRight') {
+                        e.preventDefault();
+                        nextCard();
+                    } else if (e.code === 'ArrowLeft') {
+                        e.preventDefault();
+                        prevCard();
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isFlipped, currentIndex, mode, currentVocabList, showSplash]);
+
+            const startQuiz = () => {
+                const shuffled = shuffle(currentVocabList);
+                const isFinal = selectedSection === 'final';
+                
+                const mcqCount = isFinal ? Math.min(30, shuffled.length) : Math.min(15, shuffled.length);
+                const mcq = shuffled.slice(0, mcqCount).map(item => {
+                    const options = shuffle([
+                        item.mean,
+                        ...shuffle(VOCAB_DATA.filter(v => v.word !== item.word)).slice(0, 3).map(v => v.mean)
+                    ]);
+                    return { ...item, options };
+                });
+                setMcqQuestions(mcq);
+                
+                const writtenCount = isFinal ? Math.min(15, shuffled.length) : Math.min(8, shuffled.length);
+                const written = shuffle(currentVocabList).slice(0, writtenCount);
+                setWrittenQuestions(written);
+                
+                setMode('quiz-mcq');
+                setCurrentIndex(0);
+                setMcqAnswers({});
+                setWrittenUserAnswers({});
+                setWrittenValue("");
+                setMcqScore(0);
+                setWrittenScore(0);
+            };
+
+            const handleMCQSelect = (answer) => {
+                setMcqAnswers(prev => ({ ...prev, [currentIndex]: answer }));
+                if (currentIndex < mcqQuestions.length - 1) {
+                    setTimeout(() => {
+                        setSlideDirection('next');
+                        setSlideKey(prev => prev + 1);
+                        setCurrentIndex(prev => prev + 1);
+                    }, 180);
+                }
+            };
+
+            const submitMCQ = () => {
+                let correct = 0;
+                mcqQuestions.forEach((q, idx) => {
+                    if (mcqAnswers[idx] === q.mean) correct++;
+                });
+                setMcqScore(correct);
+                setCurrentIndex(0);
+                setWrittenValue("");
+                setMode('quiz-written');
+            };
+
+            const handleWrittenSubmit = (e) => {
+                if (e.key === 'Enter') {
+                    if (!writtenValue.trim()) return;
+                    
+                    const currentWord = writtenQuestions[currentIndex];
+                    const val = writtenValue.trim();
+                    
+                    setWrittenUserAnswers(prev => ({ ...prev, [currentIndex]: val }));
+                    
+                    const normalizedInput = val.toLowerCase().replace(/^(the\s+)/i, '');
+                    const normalizedTarget = currentWord.word.toLowerCase().replace(/^\(the\)\s+/i, '').replace(/^(the\s+)/i, '');
+                    
+                    if (normalizedInput === normalizedTarget) {
+                        setWrittenScore(prev => prev + 1);
+                    }
+                    
+                    if (currentIndex < writtenQuestions.length - 1) {
+                        setSlideDirection('next');
+                        setSlideKey(prev => prev + 1);
+                        setCurrentIndex(prev => prev + 1);
+                        setWrittenValue("");
+                    } else {
+                        setMode('result');
+                    }
+                }
+            };
+
+            // Calculate wrong answers
+            const wrongMcqList = useMemo(() => {
+                return mcqQuestions.filter((q, idx) => mcqAnswers[idx] !== q.mean).map((q) => ({
+                    word: q.word,
+                    ipa: q.ipa,
+                    userAns: mcqAnswers[mcqQuestions.indexOf(q)] || "Chưa chọn",
+                    correctAns: q.mean
+                }));
+            }, [mcqQuestions, mcqAnswers]);
+
+            const wrongWrittenList = useMemo(() => {
+                return writtenQuestions.filter((q, idx) => {
+                    const userAns = (writtenUserAnswers[idx] || "").trim().toLowerCase().replace(/^(the\s+)/i, '');
+                    const target = q.word.toLowerCase().replace(/^\(the\)\s+/i, '').replace(/^(the\s+)/i, '');
+                    return userAns !== target;
+                }).map((q) => {
+                    const qIndex = writtenQuestions.indexOf(q);
+                    return {
+                        mean: q.mean,
+                        userAns: writtenUserAnswers[qIndex] || "(Bỏ trống)",
+                        correctAns: q.word
+                    };
+                });
+            }, [writtenQuestions, writtenUserAnswers]);
+
+            // SPLASH SCREEN
+            if (showSplash) {
+                return (
+                    <div className="fixed inset-0 bg-[#E6F7FF] flex flex-col items-center justify-between p-8 z-50">
+                        <div></div>
+                        <div className="flex flex-col items-center text-center max-w-sm w-full">
+                            <MoscoAvatar mood="wink" size="lg" />
+                            <h1 className="text-5xl font-black cosmo-gradient-text tracking-wider mt-2">COSMO</h1>
+                            
+                            {/* Author Credit on Splash Screen */}
+                            <p className="text-slate-400 font-semibold text-xs tracking-widest mt-1 mb-5">by dan.trn</p>
+                            
+                            {/* Motivational quote */}
+                            <div className="flex items-center justify-center gap-2 mb-8 text-sky-700 font-bold text-xs bg-white/80 px-6 py-2.5 rounded-full border border-sky-100 shadow-sm text-center">
+                                ✨ Every star has a story. Shine your way!
+                            </div>
+
+                            {/* Loading Bar */}
+                            <div className="w-full h-3 bg-white/80 rounded-full p-0.5 border border-sky-100 shadow-inner overflow-hidden">
+                                <div 
+                                    className="h-full rounded-full cosmo-btn-gradient transition-all duration-200"
+                                    style={{ width: `${splashProgress}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setShowSplash(false)}
+                            className="text-slate-400 text-xs font-semibold hover:text-sky-500 transition-colors"
+                        >
+                            Chạm để vào ngay ✨
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col items-center p-4 md:p-6 max-w-5xl mx-auto">
+                    {/* Header Nav */}
+                    <header className="w-full flex flex-col md:flex-row justify-between items-center py-3 px-6 glass-panel mb-6 gap-4">
+                        <div className="flex items-center gap-3">
+                            <MoscoAvatar mood="happy" size="sm" />
+                            <h1 className="text-3xl font-black cosmo-gradient-text tracking-tight">COSMO</h1>
+                        </div>
+
+                        {/* Review Sections */}
+                        <div className="flex flex-wrap gap-1.5 justify-center">
+                            {[
+                                { id: 'review1', label: 'Review 1 (U1-3)' },
+                                { id: 'review2', label: 'Review 2 (U4-6)' },
+                                { id: 'review3', label: 'Review 3 (U7-9)' },
+                                { id: 'review4', label: 'Review 4 (U10-12)' },
+                                { id: 'final', label: 'Final Review' }
+                            ].map(sec => (
+                                <button
+                                    key={sec.id}
+                                    onClick={() => handleSectionChange(sec.id)}
+                                    className={`px-3 py-1.5 rounded-2xl font-bold text-xs transition-all ${
+                                        selectedSection === sec.id
+                                        ? 'cosmo-btn-gradient text-white shadow-sm'
+                                        : 'bg-white/60 text-slate-600 hover:bg-white border border-slate-100'
+                                    }`}
+                                >
+                                    {sec.label}
+                                </button>
+                            ))}
+                        </div>
+                    </header>
+
+                    {/* Mode Bar */}
+                    <div className="w-full flex justify-between items-center mb-3 px-2">
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => { setMode('flashcard'); setCurrentIndex(0); setIsFlipped(false); }}
+                                className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${mode === 'flashcard' ? 'bg-sky-500 text-white shadow-md' : 'glass-panel text-slate-600'}`}
+                            >
+                                Học Flashcards ({currentVocabList.length})
+                            </button>
+                            <button 
+                                onClick={startQuiz}
+                                className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${mode.startsWith('quiz') ? 'bg-indigo-500 text-white shadow-md' : 'glass-panel text-slate-600'}`}
+                            >
+                                Bài Kiểm Tra
+                            </button>
+                        </div>
+                        <div className="px-4 py-2 glass-panel text-xs font-bold text-sky-600">
+                            {mode === 'flashcard' && `${currentIndex + 1} / ${currentVocabList.length}`}
+                            {mode === 'quiz-mcq' && `Trắc nghiệm: ${currentIndex + 1} / ${mcqQuestions.length}`}
+                            {mode === 'quiz-written' && `Tự luận: ${currentIndex + 1} / ${writtenQuestions.length}`}
+                            {mode === 'result' && "Báo cáo điểm"}
+                        </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full h-2 bg-white/60 rounded-full mb-6 overflow-hidden p-0.5 border border-sky-100">
+                        <div 
+                            className="h-full cosmo-btn-gradient rounded-full transition-all duration-300" 
+                            style={{ 
+                                width: `${
+                                    mode === 'flashcard' ? ((currentIndex + 1) / currentVocabList.length) * 100 :
+                                    mode === 'quiz-mcq' ? ((currentIndex + 1) / mcqQuestions.length) * 100 :
+                                    mode === 'quiz-written' ? ((currentIndex + 1) / writtenQuestions.length) * 100 : 100
+                                }%` 
+                            }}
+                        ></div>
+                    </div>
+
+                    {/* Main Content Area */}
+                    <main className="w-full flex-1 flex flex-col items-center justify-center">
+                        {/* 1. FLASHCARD MODE (NotebookLM Transition Style) */}
+                        {mode === 'flashcard' && (
+                            <div className="w-full max-w-md flex flex-col items-center">
+                                <div className="w-full card-container-wrapper">
+                                    <div 
+                                        key={slideKey}
+                                        className={`relative h-96 w-full perspective cursor-pointer ${
+                                            slideDirection === 'next' ? 'slide-next-enter' : 'slide-prev-enter'
+                                        }`}
+                                        onClick={() => setIsFlipped(!isFlipped)}
+                                    >
+                                        <div className={`flip-card-inner w-full h-full relative ${isFlipped ? 'flipped' : ''}`}>
+                                            {/* Front Side */}
+                                            <div className="flip-card-front glass-panel p-8 flex flex-col justify-between items-center text-center border-2 border-white">
+                                                <div className="w-full flex justify-between items-center">
+                                                    <span className="text-xs font-bold text-sky-500 bg-sky-50 px-3 py-1 rounded-full border border-sky-100">
+                                                        Unit {currentVocabList[currentIndex].unit}
+                                                    </span>
+                                                    <span className="text-xs font-bold text-slate-400">({currentVocabList[currentIndex].type})</span>
+                                                </div>
+
+                                                <div className="flex flex-col items-center my-auto">
+                                                    <h2 className="text-3xl font-black text-slate-800 mb-2">{currentVocabList[currentIndex].word}</h2>
+                                                    <p className="text-slate-400 italic text-base font-medium mb-6">{currentVocabList[currentIndex].ipa}</p>
+
+                                                    <button 
+                                                        onClick={(e) => speakWord(currentVocabList[currentIndex].word, e)}
+                                                        className="flex items-center gap-2 px-5 py-2.5 bg-sky-50 text-sky-600 rounded-full hover:bg-sky-100 transition-all font-bold text-xs shadow-sm border border-sky-100"
+                                                    >
+                                                        🔊 Nghe phát âm
+                                                    </button>
+                                                </div>
+
+                                                <div className="text-slate-400 text-xs font-medium">
+                                                    ✨ Nhấp mặt thẻ để lật xem nghĩa
+                                                </div>
+                                            </div>
+
+                                            {/* Back Side */}
+                                            <div className="flip-card-back glass-panel p-8 flex flex-col justify-between items-center text-center bg-emerald-50/90 border-2 border-emerald-100">
+                                                <div className="w-full text-right">
+                                                    <span className="text-xs font-bold text-emerald-600 bg-white/80 px-3 py-1 rounded-full">Tiếng Việt</span>
+                                                </div>
+                                                <div className="my-auto">
+                                                    <h2 className="text-2xl font-bold text-slate-800 leading-relaxed">{currentVocabList[currentIndex].mean}</h2>
+                                                </div>
+                                                <div className="text-emerald-500 text-xs font-medium">
+                                                    Mosco: "Nhớ ghi nhớ nghĩa này nhé!" ✨
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Controls Navigation Buttons */}
+                                <div className="flex justify-between items-center mt-6 w-full gap-4">
+                                    <button 
+                                        onClick={prevCard} 
+                                        disabled={currentIndex === 0}
+                                        className="flex-1 py-3.5 glass-panel text-slate-700 font-bold transition-all hover:bg-white active:scale-95 text-sm flex items-center justify-center gap-2 disabled:opacity-40"
+                                    >
+                                        <span>←</span> Câu trước
+                                    </button>
+                                    <button 
+                                        onClick={nextCard} 
+                                        className="flex-1 py-3.5 cosmo-btn-gradient text-white rounded-2xl font-bold transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+                                    >
+                                        Chuyển từ tiếp <span>→</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 2. MCQ QUIZ MODE */}
+                        {mode === 'quiz-mcq' && (
+                            <div className="w-full max-w-xl glass-panel p-8 border-2 border-white">
+                                <div className="mb-6">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-xs font-bold text-sky-500 uppercase tracking-wider">Câu {currentIndex + 1} / {mcqQuestions.length}</span>
+                                        <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full">Trắc nghiệm</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-3xl font-black text-slate-800">{mcqQuestions[currentIndex].word}</h3>
+                                        <button onClick={(e) => speakWord(mcqQuestions[currentIndex].word, e)} className="p-2 text-sky-500 bg-sky-50 rounded-full hover:bg-sky-100">
+                                            🔊
+                                        </button>
+                                    </div>
+                                    <p className="text-slate-400 italic text-sm mt-1">{mcqQuestions[currentIndex].ipa} ({mcqQuestions[currentIndex].type})</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                    {mcqQuestions[currentIndex].options.map((opt, i) => (
+                                        <button 
+                                            key={i}
+                                            onClick={() => handleMCQSelect(opt)}
+                                            className={`p-4 text-left rounded-2xl border transition-all font-semibold text-sm flex items-center ${
+                                                mcqAnswers[currentIndex] === opt 
+                                                ? 'border-sky-400 bg-sky-50 text-sky-700 shadow-sm' 
+                                                : 'border-slate-100 bg-white/70 hover:bg-white hover:border-sky-200 text-slate-600'
+                                            }`}
+                                        >
+                                            <span className="inline-block w-7 h-7 rounded-xl bg-slate-100 text-center leading-7 mr-3 text-xs font-bold text-slate-500">{String.fromCharCode(65 + i)}</span>
+                                            <span className="flex-1">{opt}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="mt-8 flex justify-between items-center">
+                                    <button 
+                                        onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+                                        disabled={currentIndex === 0}
+                                        className="px-4 py-2 text-slate-400 font-bold text-xs disabled:opacity-30"
+                                    >
+                                        Câu trước
+                                    </button>
+                                    {currentIndex === mcqQuestions.length - 1 ? (
+                                        <button onClick={submitMCQ} className="px-6 py-3 cosmo-btn-gradient text-white rounded-2xl font-bold shadow-md text-xs">
+                                            Chuyển sang Tự luận →
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => setCurrentIndex(prev => Math.min(mcqQuestions.length - 1, prev + 1))} className="px-4 py-2 text-sky-500 font-bold text-xs">
+                                            Bỏ qua →
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. WRITTEN QUIZ MODE */}
+                        {mode === 'quiz-written' && (
+                            <div className="w-full max-w-lg glass-panel p-8 text-center border-2 border-white">
+                                <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full">Tự luận {currentIndex + 1} / {writtenQuestions.length}</span>
+                                
+                                <h3 className="text-sm font-bold text-slate-500 mt-6 mb-2">Nhập từ Tiếng Anh tương ứng với nghĩa:</h3>
+                                
+                                <div className="text-2xl font-black text-slate-800 mb-6 bg-white/80 p-4 rounded-2xl border border-sky-100 shadow-sm">
+                                    "{writtenQuestions[currentIndex].mean}"
+                                </div>
+
+                                <p className="text-slate-400 text-xs italic mb-6">{writtenQuestions[currentIndex].ipa} ({writtenQuestions[currentIndex].type})</p>
+
+                                <input 
+                                    autoFocus
+                                    type="text" 
+                                    value={writtenValue}
+                                    onChange={(e) => setWrittenValue(e.target.value)}
+                                    onKeyDown={handleWrittenSubmit}
+                                    placeholder="Gõ từ tiếng Anh rồi ấn Enter..."
+                                    className="w-full p-4 text-center text-xl font-bold border-b-2 border-sky-300 focus:border-sky-500 outline-none transition-all text-slate-700 bg-transparent placeholder:font-normal placeholder:text-sm mb-4"
+                                />
+
+                                <div className="text-slate-400 text-xs">Ấn <span className="font-bold text-sky-500">Enter ↵</span> để nộp câu này</div>
+                            </div>
+                        )}
+
+                        {/* 4. RESULT MODE */}
+                        {mode === 'result' && (
+                            <div className="w-full max-w-2xl glass-panel p-8">
+                                <div className="text-center mb-8">
+                                    <MoscoAvatar mood={wrongMcqList.length + wrongWrittenList.length === 0 ? "happy" : "think"} size="md" />
+                                    <h2 className="text-3xl font-black cosmo-gradient-text mt-3">Kết Quả Báo Cáo</h2>
+                                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{selectedSection}</p>
+
+                                    <div className="grid grid-cols-2 gap-4 mt-6 max-w-md mx-auto">
+                                        <div className="bg-sky-50/80 p-4 rounded-2xl border border-sky-100">
+                                            <div className="text-xs font-bold text-sky-500 uppercase mb-1">Trắc nghiệm</div>
+                                            <div className="text-2xl font-black text-sky-700">{mcqScore} / {mcqQuestions.length}</div>
+                                        </div>
+                                        <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100">
+                                            <div className="text-xs font-bold text-emerald-500 uppercase mb-1">Tự luận</div>
+                                            <div className="text-2xl font-black text-emerald-700">{writtenScore} / {writtenQuestions.length}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Review List */}
+                                {(wrongMcqList.length > 0 || wrongWrittenList.length > 0) ? (
+                                    <div className="space-y-6 border-t border-slate-100 pt-6">
+                                        <h3 className="text-base font-extrabold text-slate-700 flex items-center gap-2">
+                                            <span>📌</span> Các câu bạn đã làm chưa đúng ({wrongMcqList.length + wrongWrittenList.length}):
+                                        </h3>
+
+                                        {wrongMcqList.length > 0 && (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold text-sky-600 uppercase">Phần Trắc Nghiệm</h4>
+                                                {wrongMcqList.map((item, idx) => (
+                                                    <div key={idx} className="bg-white/80 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1 text-sm">
+                                                        <div className="font-bold text-slate-800">{item.word} <span className="text-slate-400 font-normal italic text-xs">{item.ipa}</span></div>
+                                                        <div className="flex flex-wrap gap-4 text-xs mt-1">
+                                                            <span className="text-rose-500">❌ Bạn chọn: <span className="font-semibold">{item.userAns}</span></span>
+                                                            <span className="text-emerald-600">✅ Đáp án đúng: <span className="font-bold">{item.correctAns}</span></span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {wrongWrittenList.length > 0 && (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold text-emerald-600 uppercase">Phần Tự Luận</h4>
+                                                {wrongWrittenList.map((item, idx) => (
+                                                    <div key={idx} className="bg-white/80 p-4 rounded-2xl border border-rose-100 flex flex-col gap-1 text-sm">
+                                                        <div className="font-bold text-slate-800">Nghĩa: "{item.mean}"</div>
+                                                        <div className="flex flex-wrap gap-4 text-xs mt-1">
+                                                            <span className="text-rose-500">❌ Bạn gõ: <span className="font-semibold">{item.userAns}</span></span>
+                                                            <span className="text-emerald-600">✅ Từ chính xác: <span className="font-bold">{item.correctAns}</span></span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="bg-emerald-50 text-emerald-700 p-4 rounded-2xl text-center font-bold text-sm">
+                                        🎉 Xuất sắc! Bạn không sai câu nào cả! Mosco rất tự hào về bạn! ✨
+                                    </div>
+                                )}
+
+                                <button 
+                                    onClick={() => {
+                                        setMode('flashcard');
+                                        setCurrentIndex(0);
+                                    }} 
+                                    className="w-full mt-8 py-4 cosmo-btn-gradient text-white rounded-2xl font-bold shadow-md text-sm"
+                                >
+                                    Ôn tập lại ngay
+                                </button>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Mosco Floating Footer Companion */}
+                    <footer className="mt-8 flex items-center gap-4 bg-white/80 px-6 py-3 rounded-full border border-white/90 shadow-sm">
+                        <MoscoAvatar mood="happy" size="sm" />
+                        <span className="text-xs font-semibold text-slate-600">
+                            Mosco: <span className="text-sky-600 font-bold">"Pip! Học cùng COSMO thật vui mỗi ngày!" ✨</span>
+                        </span>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
